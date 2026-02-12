@@ -15,10 +15,9 @@ Main Author(s) of the Project: [Erik Wen Han Sun]
 
 ## Overview
 
-Briefly describe what the project does. Mention the type of CPS involved (e.g. smart mobility, industrial automation, healthcare robotics) and the problem it addresses.
+A vine robot for multi arm collaboration and precise navigation.
 
-> Example:  
-> A simulation-based framework for adaptive coordination of mobile robots in warehouse logistics using multi-agent reinforcement learning (MARL).
+
 
 ## System Architecture
 
@@ -30,16 +29,7 @@ Describe the top-level design: sensors, actuators, embedded components, communic
 > - Control: Centralized training with decentralized execution  
 > - Interface: MATLAB/Simulink or Python (e.g., PyBullet/Gazebo/IsaacSim)
 
-Provide a diagram (as an imagine - examples below), if available.
->[Online Image Example]
->
->**Ideal option** - Upload the image(s) to an online image sharing platform (Google Drive, Imgur, Dailymotion etc.).
 
-![Alt Text - Test Image](https://i.imgur.com/XqeWqgI.png "Online Image Example")
-
->[Alternative - Local Image Example]
-
-![Alt Text - Test Image](img/image_example.png "Local Image Example")
 
 
 ## Installation & Usage
@@ -86,28 +76,6 @@ Include a brief overview on how to reproduce demo scenarios.
 
 Provide images, video links or `.gif` recordings here, if available.
 
->[Online GIF example]
->
->**Ideal option** - Upload the GIF to an online GIF sharing platform (Giphy, Imgur, makeagif etc.).
-
-![Alt Text - Test GIF](https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExY256ajFpb3dmdWZvZzQzb2xhZmhxZ2t3aWVnNDg3YThxMWNlcXQxayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/A3lXxoMlmyme2mY7kD/giphy.gif "Online GIF Example")
-
->[Alternative - Local GIF example]
-
-![Alt Text - Test GIF](img/gif_example.webp "Local GIF Example")
-
-
->[Online Video Example]
->
->**Ideal option** - Upload the presentation video to an online video sharing platform (Youtube, Vimeo, Dailymotion etc.). [Useful link](https://markdown-videos.jorgenkh.no/) for generating a thumbnail for the video.
-
-[![Alt Text - Test Video](https://markdown-videos-api.jorgenkh.no/youtube/dQw4w9WgXcQ)](https://youtu.be/dQw4w9WgXcQ)
-
->[Alternative - Git Upload Video Example]
->
->There are restrictions on Git on how much video data you can upload (**max. 10 MB**), so be careful about this. You can copy-paste the video directly to this `.md` file and Git will automatically generate a link associated to the video itself that you can modify in the file's code.
-
-[![Alt Text - Test Video]()](https://github.com/user-attachments/assets/37309722-532a-4ce0-ac7f-888dd1b20d11)
 
 
 ## Configuration
