@@ -1,0 +1,379 @@
+// Single Arduino: All motors ON/OFF (digital only) – no PWM, no Timer1 conflict
+#include <Servo.h>
+
+// ---------- Motor pins ----------
+#define PUMP 13
+#define PUMP2 12
+const int valvePin = 2;
+const int valvePin2 = 4;
+
+const int motor1IN1 = 3;   // arm1
+const int motor1IN2 = 5;   // arm1
+const int motor2IN1 = 9;   // arm2 (digital only – no PWM)
+const int motor2IN2 = 10;  // arm2 (digital only – no PWM)
+const int motor3IN1 = 11;  // arm3
+const int motor3IN2 = 6;   // arm3
+
+int targetSpeed1 = 0;  // arm1 direction: 100=forward, -100=reverse, 0=stop
+int targetSpeed2 = 0;  // arm2
+int targetSpeed3 = 0;  // arm3
+
+String inputBuffer = "";
+
+// ---------- Six servos ----------
+Servo myServo21; // arm2 servo1
+Servo myServo22; // arm2 servo2
+Servo myServo31; // arm3 servo1
+Servo myServo32; // arm3 servo2
+Servo myServo11; // arm1 servo1
+Servo myServo12; // arm1 servo2
+
+const int stopValue = 1500;
+
+// ---------- Non‑blocking servo state ----------
+enum ServoState { IDLE, MOVING };
+
+ServoState state1 = IDLE, state2 = IDLE;
+unsigned long servo1EndTime = 0, servo2EndTime = 0;
+int servo1Direction = 0, servo2Direction = 0;
+
+ServoState state3 = IDLE, state4 = IDLE;
+unsigned long servo3EndTime = 0, servo4EndTime = 0;
+int servo3Direction = 0, servo4Direction = 0;
+
+ServoState state5 = IDLE, state6 = IDLE;
+unsigned long servo5EndTime = 0, servo6EndTime = 0;
+int servo5Direction = 0, servo6Direction = 0;
+
+// ---------- Motor ON/OFF control (digital only) ----------
+void setMotorOnOff(int in1, int in2, int dir) {
+  if (dir > 0) {
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+  } else if (dir < 0) {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+  } else {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+  }
+}
+
+// ---------- Complex input handler ----------
+void handleComplex(int x, int y, char level) {
+  switch (level) {
+    case 'l':
+      if (x >= 1 && x <= 11 && y >= -11 && y <= 11) {
+        if (x >= 1 && x <= 11 && y >= -11 && y <= -1) {
+          if (abs(x) < abs(y)) {
+            goto area3;
+          }
+        }
+
+        // arm2 – area2 / area3 overlap
+        Serial.println("area 2, low level");
+        targetSpeed2 = 100;
+
+        int durations1[] = {0, 12000, 16000, 20000, 24000, 28000, 32000, 36000, 40000, 44000, 48000, 52000};
+        int duration1 = durations1[x];
+
+        digitalWrite(PUMP2, HIGH);
+        digitalWrite(valvePin2, LOW);
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(valvePin, LOW);
+        setMotorOnOff(motor2IN1, motor2IN2, 100);   // motor2 ON forward
+        delay(duration1);
+
+        setMotorOnOff(motor2IN1, motor2IN2, 0);     // motor2 stop
+        targetSpeed2 = 0;
+        digitalWrite(PUMP2, LOW);
+        digitalWrite(valvePin2, HIGH);
+        digitalWrite(PUMP, LOW);
+        digitalWrite(valvePin, HIGH);
+
+        // arm2 servo
+        int servoDurations[] = {0, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500};
+        int servoDuration = servoDurations[abs(y)];
+
+        
+        if (y < 1) {
+          myServo21.writeMicroseconds(1400);
+          servo1EndTime = millis() + servoDuration;
+          servo1Direction = 1;
+          state1 = MOVING;
+        } else if (y > 1) {
+          myServo22.writeMicroseconds(1400);
+          servo2EndTime = millis() + servoDuration;
+          servo2Direction = 1;
+          state2 = MOVING;
+        }
+
+      } else if (x >= -11 && x <= 11 && y >= -11 && y <= -1) {
+        area3:
+        // arm3 – area3 / area4
+        Serial.println("area 3, low level");
+        targetSpeed3 = 100;
+        int durations2[] = {0, 12000, 16000, 20000, 24000, 28000, 32000, 36000, 40000, 44000, 48000, 52000};
+        int duration2 = durations2[abs(y)];
+        setMotorOnOff(motor3IN1, motor3IN2, 100);   // motor3 ON forward
+        delay(duration2);
+        setMotorOnOff(motor3IN1, motor3IN2, 0);     // motor3 stop
+        targetSpeed3 = 0;
+      }
+      else if (x >= -11 && x <= 11 && y >= 1 && y <= 11) {
+        // arm1 – area1
+        Serial.println("area 1, low level");
+        targetSpeed1 = 100;
+        int durations1[] = {0, 12000, 16000, 20000, 24000, 28000, 32000, 36000, 40000, 44000, 48000, 52000};
+        int duration1 = durations1[x];
+
+        digitalWrite(PUMP2, HIGH);
+        digitalWrite(valvePin2, LOW);
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(valvePin, LOW);
+        setMotorOnOff(motor1IN1, motor1IN2, 100);   // motor1 ON forward
+        delay(duration1);
+
+        setMotorOnOff(motor1IN1, motor1IN2, 0);     // motor1 stop
+        targetSpeed1 = 0;
+        digitalWrite(PUMP2, LOW);
+        digitalWrite(valvePin2, HIGH);
+        digitalWrite(PUMP, LOW);
+        digitalWrite(valvePin, HIGH);
+
+        // arm1 servos
+        int servoDurations[] = {0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500};
+        int servoDuration = servoDurations[abs(y)];
+
+        // In area1, y is always ≥1.  You can decide which servo(s) to move.
+        // Here we follow your original intention (only y>1 triggers the second servo).
+        // If you want the first servo too, adjust the condition.
+        if (y < 1) {
+            // This branch will never execute when y ≥1; kept for symmetry.
+            myServo11.writeMicroseconds(1400);
+            servo5EndTime = millis() + servoDuration;   // correct variable
+            servo5Direction = 1;
+            state5 = MOVING;                             // correct state
+        } else if (y > 1) {
+            myServo12.writeMicroseconds(1400);
+            servo6EndTime = millis() + servoDuration;   // correct variable
+            servo6Direction = 1;
+            state6 = MOVING;                             // correct state
+        }
+        // If y == 1, no servo moves (or you could add a default).
+    }
+      else {
+        Serial.println("Error: values out of range.");
+      }
+      break;
+
+
+
+///////////////////////////////////////
+
+    case 'h':
+      // (unchanged)
+      if (x >= 1 && x <= 11 && y >= 1 && y <= 11) {
+        Serial.println("area 2, low level");
+        targetSpeed2 = 100;
+        int durations1[] = {0, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000, 22000, 24000, 26000};
+        int duration1 = durations1[x];
+        digitalWrite(PUMP2, HIGH);
+        digitalWrite(valvePin2, LOW);
+        digitalWrite(PUMP, HIGH);
+        digitalWrite(valvePin, LOW);
+        setMotorOnOff(motor2IN1, motor2IN2, 100);   // motor2 ON forward
+        setMotorOnOff(motor1IN1, motor1IN2, 100);
+        delay(duration1);
+
+        setMotorOnOff(motor2IN1, motor2IN2, 0);     // motor2 stop
+        setMotorOnOff(motor1IN1, motor1IN2, 0);
+
+        targetSpeed2 = 0;
+        digitalWrite(PUMP2, LOW);
+        digitalWrite(valvePin2, HIGH);
+        digitalWrite(PUMP, LOW);
+        digitalWrite(valvePin, HIGH);
+
+
+        int servoDurations[] = {0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500};
+        int servoDuration = servoDurations[abs(y)];
+        
+          myServo11.writeMicroseconds(1400);
+          servo5EndTime = millis() + servoDuration;
+          servo5Direction = 1;
+          state5 = MOVING;
+       
+          myServo22.writeMicroseconds(1400);
+          servo2EndTime = millis() + servoDuration;
+          servo2Direction = 1;
+          state2 = MOVING;
+        
+
+      }
+      if (x >= 1 && x <= 11 && y >= -1 && y <= -11) {
+        Serial.print("M1 speed set to: ");
+        Serial.print("M2 speed set to: ");
+      } else {
+        Serial.println("Error: for L, both x and y must be 1 to 11.");
+      }
+      break;
+
+    default:
+      Serial.println("Unknown complex level.");
+      break;
+  }
+}
+
+// ---------- Simple single‑char commands ----------
+void handleSimple(char input) {
+  const unsigned long servoDuration = 4000;
+
+  switch (input) {
+    // Pumps & valves
+    case '1':
+      digitalWrite(PUMP2, HIGH);
+      digitalWrite(valvePin2, LOW);
+      digitalWrite(PUMP, HIGH);
+      digitalWrite(valvePin, LOW);
+      Serial.println("Pumps ON.");
+      break;
+    case '2':
+      digitalWrite(PUMP2, LOW);
+      digitalWrite(valvePin2, HIGH);
+      digitalWrite(PUMP, LOW);
+      digitalWrite(valvePin, HIGH);
+      Serial.println("Pumps OFF.");
+      break;
+
+    // Motor 1 (arm1)
+    case 'r': targetSpeed1 =  100;  Serial.println("arm1 Forward.");  break;
+    case 'f': targetSpeed1 = -100;  Serial.println("arm1 Reverse.");  break;
+    case 'v': targetSpeed1 =    0;  Serial.println("arm1 Stop.");     break;
+
+    // Motor 2 (arm2)
+    case 'w': targetSpeed2 =  100;  Serial.println("arm2 Forward.");  break;
+    case 's': targetSpeed2 = -100;  Serial.println("arm2 Reverse.");  break;
+    case 'x': targetSpeed2 =    0;  Serial.println("arm2 Stop.");     break;
+
+    // Motor 3 (arm3)
+    case 'e': targetSpeed3 =  100;  Serial.println("arm3 Forward.");  break;
+    case 'd': targetSpeed3 = -100;  Serial.println("arm3 Reverse.");  break;
+    case 'c': targetSpeed3 =    0;  Serial.println("arm3 Stop.");     break;
+
+    case 'q':
+      targetSpeed1 = 0;
+      targetSpeed2 = 0;
+      targetSpeed3 = 0;
+      Serial.println("All motors stop.");
+      break;
+
+    // Servos (unchanged)
+    case '5': myServo21.writeMicroseconds(1400); servo1EndTime = millis()+servoDuration; servo1Direction=1; state1=MOVING; break;
+    case '6': myServo21.writeMicroseconds(1600); servo1EndTime = millis()+servoDuration; servo1Direction=2; state1=MOVING; break;
+    case '7': myServo21.writeMicroseconds(stopValue); state1=IDLE; break;
+    case '8': myServo22.writeMicroseconds(1400); servo2EndTime = millis()+servoDuration; servo2Direction=1; state2=MOVING; break;
+    case '9': myServo22.writeMicroseconds(1600); servo2EndTime = millis()+servoDuration; servo2Direction=2; state2=MOVING; break;
+    case '0': myServo22.writeMicroseconds(stopValue); state2=IDLE; break;
+    case 't': myServo31.writeMicroseconds(1400); servo3EndTime = millis()+servoDuration; servo3Direction=1; state3=MOVING; break;
+    case 'g': myServo31.writeMicroseconds(1600); servo3EndTime = millis()+servoDuration; servo3Direction=2; state3=MOVING; break;
+    case 'b': myServo31.writeMicroseconds(stopValue); state3=IDLE; break;
+    case 'y': myServo32.writeMicroseconds(1400); servo4EndTime = millis()+servoDuration; servo4Direction=1; state4=MOVING; break;
+    case 'h': myServo32.writeMicroseconds(1600); servo4EndTime = millis()+servoDuration; servo4Direction=2; state4=MOVING; break;
+    case 'n': myServo32.writeMicroseconds(stopValue); state4=IDLE; break;
+    case 'u': myServo11.writeMicroseconds(1400); servo5EndTime = millis()+servoDuration; servo5Direction=1; state5=MOVING; break;
+    case 'i': myServo11.writeMicroseconds(1600); servo5EndTime = millis()+servoDuration; servo5Direction=2; state5=MOVING; break;
+    case 'o': myServo11.writeMicroseconds(stopValue); state5=IDLE; break;
+    case 'j': myServo12.writeMicroseconds(1400); servo6EndTime = millis()+servoDuration; servo6Direction=1; state6=MOVING; break;
+    case 'k': myServo12.writeMicroseconds(1600); servo6EndTime = millis()+servoDuration; servo6Direction=2; state6=MOVING; break;
+    case 'l': myServo12.writeMicroseconds(stopValue); state6=IDLE; break;
+
+    default:
+      Serial.print("Unknown command: ");
+      Serial.println(input);
+      break;
+  }
+}
+
+// ---------- Command parser ----------
+void parseCommand(String cmd) {
+  cmd.trim();
+  int firstComma = cmd.indexOf(',');
+  int secondComma = cmd.indexOf(',', firstComma + 1);
+
+  if (firstComma != -1 && secondComma != -1) {
+    int x = cmd.substring(0, firstComma).toInt();
+    int y = cmd.substring(firstComma + 1, secondComma).toInt();
+    char level = cmd.charAt(secondComma + 1);
+    if (x < -255 || x > 255) { Serial.println("Error: x out of range"); return; }
+    if (y < -255 || y > 255) { Serial.println("Error: y out of range"); return; }
+    handleComplex(x, y, level);
+  }
+  else if (cmd.length() == 1) {
+    handleSimple(cmd.charAt(0));
+  } else {
+    Serial.println("Bad format. Use: num,num,char or single char");
+  }
+}
+
+// ---------- Setup ----------
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(motor1IN1, OUTPUT); pinMode(motor1IN2, OUTPUT);
+  pinMode(motor2IN1, OUTPUT); pinMode(motor2IN2, OUTPUT);
+  pinMode(motor3IN1, OUTPUT); pinMode(motor3IN2, OUTPUT);
+
+  pinMode(PUMP, OUTPUT);
+  pinMode(PUMP2, OUTPUT);
+  pinMode(valvePin, OUTPUT);   digitalWrite(valvePin, HIGH);
+  pinMode(valvePin2, OUTPUT);  digitalWrite(valvePin2, HIGH);
+
+  myServo21.attach(A5, 900, 2100);
+  myServo22.attach(A4, 900, 2100);
+  myServo31.attach(A0, 900, 2100);
+  myServo32.attach(A1, 900, 2100);
+  myServo11.attach(A3, 900, 2100);
+  myServo12.attach(A2, 900, 2100);
+
+  myServo21.writeMicroseconds(stopValue);
+  myServo22.writeMicroseconds(stopValue);
+  myServo31.writeMicroseconds(stopValue);
+  myServo32.writeMicroseconds(stopValue);
+  myServo11.writeMicroseconds(stopValue);
+  myServo12.writeMicroseconds(stopValue);
+
+  Serial.println("Ready. All motors ON/OFF only.");
+}
+
+// ---------- Main loop ----------
+void loop() {
+  // Process serial input
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (inputBuffer.length() > 0) {
+        parseCommand(inputBuffer);
+        inputBuffer = "";
+      }
+    } else {
+      inputBuffer += c;
+    }
+  }
+
+  // Update motors with the current direction flags
+  setMotorOnOff(motor1IN1, motor1IN2, targetSpeed1);
+  setMotorOnOff(motor2IN1, motor2IN2, targetSpeed2);
+  setMotorOnOff(motor3IN1, motor3IN2, targetSpeed3);
+
+  // Servo timeout checks
+  unsigned long now = millis();
+  if (state1 == MOVING && now >= servo1EndTime) { myServo21.writeMicroseconds(stopValue); state1 = IDLE; }
+  if (state2 == MOVING && now >= servo2EndTime) { myServo22.writeMicroseconds(stopValue); state2 = IDLE; }
+  if (state3 == MOVING && now >= servo3EndTime) { myServo31.writeMicroseconds(stopValue); state3 = IDLE; }
+  if (state4 == MOVING && now >= servo4EndTime) { myServo32.writeMicroseconds(stopValue); state4 = IDLE; }
+  if (state5 == MOVING && now >= servo5EndTime) { myServo11.writeMicroseconds(stopValue); state5 = IDLE; }
+  if (state6 == MOVING && now >= servo6EndTime) { myServo12.writeMicroseconds(stopValue); state6 = IDLE; }
+
+  delay(10);
+}
