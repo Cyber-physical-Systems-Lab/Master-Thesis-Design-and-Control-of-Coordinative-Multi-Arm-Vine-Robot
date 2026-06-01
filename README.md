@@ -1,4 +1,4 @@
-# Cyber-Physical Systems Project: [Project Title]
+# Cyber-Physical Systems Project: [Design and Control of Coordinative Multi-Arm Vine Robot]
 Main Author(s) of the Project: [Erik Wen Han Sun]
 
 ## Table of Contents
@@ -15,7 +15,7 @@ Main Author(s) of the Project: [Erik Wen Han Sun]
 
 ## Overview
 
-A vine robot for multi arm collaboration and precise navigation.
+A vine robot for navigation and multi arm collaboration .
 
 
 
